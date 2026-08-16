@@ -178,23 +178,103 @@ h2 {
   text-transform: uppercase;
 }
 
-pre {
-  margin: 0;
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
+.official-response-content {
+  width: 100%;
   color: var(--text);
-  font: inherit;
-  line-height: 1.65;
 }
 
-#official-response-text {
-  display: block;
-  width: 100%;
-  white-space: pre-line;
+.official-response-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(17, 26, 39, 0.72);
+}
+
+.official-response-summary.is-valid {
+  border-color: rgba(103, 232, 165, 0.28);
+  background: rgba(103, 232, 165, 0.055);
+}
+
+.official-response-summary.is-invalid {
+  border-color: rgba(255, 122, 144, 0.28);
+  background: rgba(255, 122, 144, 0.055);
+}
+
+.official-response-icon {
+  display: inline-flex;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: #041019;
+  background: var(--success);
+  font-size: 0.95rem;
+  font-weight: 900;
+}
+
+.official-response-summary.is-invalid .official-response-icon {
+  color: #19040a;
+  background: var(--danger);
+}
+
+.official-response-summary-copy {
+  min-width: 0;
+}
+
+.official-response-intro {
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.official-response-description {
+  margin-top: 5px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.official-response-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0 0;
+}
+
+.official-response-field {
+  min-width: 0;
+  padding: 13px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(13, 19, 29, 0.76);
+}
+
+.official-response-field dt {
+  margin: 0 0 5px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.official-response-field dd {
+  margin: 0;
   overflow-wrap: anywhere;
-  word-break: normal;
-  text-align: left;
-  line-height: 1.7;
+  color: var(--text);
+  font-size: 0.94rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.official-response-fallback {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  line-height: 1.65;
 }
 
 .actions {
@@ -321,6 +401,14 @@ footer {
 
   .credential-grid {
     grid-template-columns: 1fr;
+  }
+
+  .official-response-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .official-response-summary {
+    padding: 14px;
   }
 
   .primary-button,
