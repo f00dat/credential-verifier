@@ -65,53 +65,121 @@ function setStatus(type, text) {
   statusBadge.textContent = text;
 }
 
-function extractOfficialText(value) {
+function parseOfficialResponse(value) {
   if (typeof value !== "string") {
-    return JSON.stringify(value, null, 2);
+    return {
+      intro: "Official validator response",
+      description: "",
+      fields: [],
+      fallback: JSON.stringify(value, null, 2)
+    };
   }
 
   const parsed = new DOMParser().parseFromString(value, "text/html");
 
-  parsed.querySelectorAll("br").forEach((br) => {
-    br.replaceWith(parsed.createTextNode("\n"));
-  });
-
-  parsed
-    .querySelectorAll(
-      "p, div, section, article, header, footer, li, tr, h1, h2, h3, h4, h5, h6"
-    )
-    .forEach((element) => {
-      element.insertAdjacentText("beforebegin", "\n");
-      element.insertAdjacentText("afterend", "\n");
-    });
-
-  let text = parsed.body.textContent || "";
-
-  text = text
+  let text = (parsed.body.textContent || "")
     .replace(/\u00a0/g, " ")
-    .replace(/[ \t]+\n/g, "\n")
-    .replace(/\n[ \t]+/g, "\n")
-    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\s+/g, " ")
     .replace(/([.!?])(?=[A-Z])/g, "$1 ")
-    .replace(/\n{3,}/g, "\n\n")
     .trim();
 
-  const fieldLabels = [
-    "Candidate Name:",
-    "Exam Name:",
-    "Issued Date:",
-    "Certificate ID:",
-    "Certificate Number:",
-    "Status:"
-  ];
+  const fieldPattern = /(Candidate Name|Exam Name|Issued Date|Certificate ID|Certificate Number|Status)\s*:\s*/gi;
+  const matches = [...text.matchAll(fieldPattern)];
 
-  fieldLabels.forEach((label, index) => {
-    const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const pattern = new RegExp(`\\s*${escapedLabel}`, "gi");
-    text = text.replace(pattern, `${index === 0 ? "\n\n" : "\n"}${label}`);
-  });
+  if (!matches.length) {
+    return {
+      intro: "Official validator response",
+      description: "",
+      fields: [],
+      fallback: text
+    };
+  }
 
-  return text.trim();
+  const firstFieldIndex = matches[0].index ?? text.length;
+  const introText = text.slice(0, firstFieldIndex).trim();
+  const firstSentenceMatch = introText.match(/^(.+?[.!?])(?:\s+|$)(.*)$/);
+
+  const intro = firstSentenceMatch?.[1]?.trim() || introText;
+  const description = firstSentenceMatch?.[2]?.trim() || "";
+
+  const fields = matches.map((match, index) => {
+    const valueStart = (match.index ?? 0) + match[0].length;
+    const valueEnd = index + 1 < matches.length
+      ? matches[index + 1].index
+      : text.length;
+
+    return {
+      label: match[1].trim(),
+      value: text.slice(valueStart, valueEnd).trim()
+    };
+  }).filter((field) => field.value);
+
+  return {
+    intro,
+    description,
+    fields,
+    fallback: ""
+  };
+}
+
+function renderOfficialResponse(value, success) {
+  const result = parseOfficialResponse(value);
+  officialResponseText.replaceChildren();
+
+  if (result.fallback) {
+    const fallback = document.createElement("div");
+    fallback.className = "official-response-fallback";
+    fallback.textContent = result.fallback;
+    officialResponseText.appendChild(fallback);
+    return;
+  }
+
+  const summary = document.createElement("div");
+  summary.className = `official-response-summary ${success ? "is-valid" : "is-invalid"}`;
+
+  const icon = document.createElement("span");
+  icon.className = "official-response-icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = success ? "✓" : "!";
+
+  const summaryCopy = document.createElement("div");
+  summaryCopy.className = "official-response-summary-copy";
+
+  const intro = document.createElement("div");
+  intro.className = "official-response-intro";
+  intro.textContent = result.intro;
+  summaryCopy.appendChild(intro);
+
+  if (result.description) {
+    const description = document.createElement("div");
+    description.className = "official-response-description";
+    description.textContent = result.description;
+    summaryCopy.appendChild(description);
+  }
+
+  summary.append(icon, summaryCopy);
+  officialResponseText.appendChild(summary);
+
+  if (result.fields.length) {
+    const grid = document.createElement("dl");
+    grid.className = "official-response-grid";
+
+    result.fields.forEach((field) => {
+      const item = document.createElement("div");
+      item.className = "official-response-field";
+
+      const label = document.createElement("dt");
+      label.textContent = field.label;
+
+      const fieldValue = document.createElement("dd");
+      fieldValue.textContent = field.value;
+
+      item.append(label, fieldValue);
+      grid.appendChild(item);
+    });
+
+    officialResponseText.appendChild(grid);
+  }
 }
 
 async function verifyCredential(slug) {
@@ -157,9 +225,9 @@ async function verifyCredential(slug) {
     }
 
     const officialSuccess = Boolean(data?.verification?.success);
-    const officialText = extractOfficialText(data?.verification?.data ?? "");
+    const officialData = data?.verification?.data ?? "";
 
-    officialResponseText.textContent = officialText || "No text was returned by the official validator.";
+    renderOfficialResponse(officialData || "No text was returned by the official validator.", officialSuccess);
     officialResponse.hidden = false;
 
     if (officialSuccess) {
@@ -172,7 +240,7 @@ async function verifyCredential(slug) {
   } catch (error) {
     setStatus("invalid", "UNAVAILABLE");
     message.textContent = "The live verification service is temporarily unavailable.";
-    officialResponseText.textContent = error.message;
+    renderOfficialResponse(error.message, false);
     officialResponse.hidden = false;
   } finally {
     verifyButton.disabled = false;
